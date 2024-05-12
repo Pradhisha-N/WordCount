@@ -1,0 +1,118 @@
+apply plugin: 'java'
+apply plugin: 'application'
+apply plugin: 'java-library-distribution'
+
+
+//mainClassName is required for application plugin
+mainClassName = "com.oracle.javawc.main.Main" 
+
+sourceCompatibility = '1.8'
+project.version = '1.0'
+project.archivesBaseName = 'lg-javawc'
+
+[compileJava, compileTestJava]*.options*.compilerArgs = ["-Xlint:-serial", "-Xlint:unchecked", "-Xlint:rawtypes"]
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+// NetBeans will automatically add "run" and "debug" tasks relying on the
+// "mainClass" property. You may however define the property prior executing
+// tasks by passing a "-PmainClass=<QUALIFIED_CLASS_NAME>" argument.
+//
+// Note however, that you may define your own "run" and "debug" task if you
+// prefer. In this case NetBeans will not add these tasks but you may rely on
+// your own implementation.
+if (!hasProperty('mainClass')) {
+    ext.mainClass = "$mainClassName"
+}
+
+
+dependencies {
+    //compile 'org.springframework.shell:spring-shell:1.2.0.M1'
+    compile "commons-io:commons-io:2.4"
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.assertj:assertj-core:3.3.0'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'http://repo.spring.io/milestone'
+    }
+}
+
+
+assemble.dependsOn = ['jar', 'sourcesJar', 'javadocJar']
+distZip.dependsOn = ['startScripts', 'assemble', 'installDist']
+//defaultTasks 'build'
+defaultTasks 'assembleDist'
+
+jar {
+    classifier = 'bin'
+    manifest {
+        attributes("Implementation-Title":"JavaWC", 
+                    "Implementation-Version":project.version,
+                    "Main-Class":"$mainClassName",
+                    "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
+                    "Created-By": "Lucas Gomes"
+                    )
+    }
+}
+
+
+installApp {
+    destinationDir = file('install')
+}
+
+startScripts {
+    applicationName = 'wc'
+}
+
+
+
+task sourcesJar(type: Jar, dependsOn:classes) {
+    classifier = 'src'
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+
+distZip {
+    from(sourcesJar) {
+        into "$project.name-$project.version/src"
+    }
+    
+     from (rootProject.collect { project -> project.docsDir }) {
+          into "$project.name-$project.version"
+     }
+}
+
+distTar {
+    from(sourcesJar) {
+        into "$project.name-$project.version/src"
+    }
+    
+     from (rootProject.collect { project -> project.docsDir }) {
+          into "$project.name-$project.version"
+     }
+}
+
+
+
+task wrapper(type: Wrapper) {
+    description = 'Generates gradlew[.bat/.sh] scripts'
+    gradleVersion = '2.11'
+}
+
+task execute(type:JavaExec) {
+   main = "$mainClassName"
+   classpath = sourceSets.main.runtimeClasspath
+}
+
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
